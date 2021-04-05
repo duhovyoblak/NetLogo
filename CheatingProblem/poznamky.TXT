@@ -1,0 +1,42 @@
+histogram setup
+set-plot-x-range min-pxcor max-pxcor
+set-plot-y-range 0 count turtles
+set-histogram-num-bars 7
+
+na kazdy patch jeden turtliak
+ask n-of num-turtles patches [ sprout 1 ]
+
+;; TURTLE STRATEGY #2:
+;; Check neighboring patches to see if any are empty.  If any are
+;; empty, pick a random empty one and move onto its center.
+;; Note that we can't just do "fd 1", since the patch's center
+;; might be more than 1 unit away from our current position.
+
+to go-if-empty-nearby
+  ask turtles [
+    let empty-patches neighbors with [not any? turtles-here]
+    if any? empty-patches
+      [ let target one-of empty-patches
+        face target
+        move-to target ]
+  ]
+  tick
+end
+
+myself
+Turtle Command Patch Command
+
+"self" and "myself" are very different. "self" is simple; it means "me". "myself" means "the turtle or patch who asked me to do what I'm doing right now."
+
+When an agent has been asked to run some code, using myself in that code reports the agent (turtle or patch) that did the asking.
+
+myself is most often used in conjunction with of to read or set variables in the asking agent.
+
+myself can be used within blocks of code not just in the ask command, but also hatch, sprout, of, with, all?, with-min, with-max, min-one-of, max-one-of, min-n-of, max-n-of.
+
+ask turtles
+  [ ask patches in-radius 3
+      [ set pcolor [color] of myself ] ]
+;; each turtle makes a colored "splotch" around itself
+
+See the "Myself Example" code example for more examples. 

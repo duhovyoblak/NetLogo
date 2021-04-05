@@ -1,0 +1,237 @@
+;;============================================================================
+;; Model spravania sa studentov pri testovani
+;;----------------------------------------------------------------------------
+globals[ pocet_agentov             ;; pocet agentov = koeficient_agentov * pocet_miest         
+       ] 
+
+breed        [ towns town        ] ;; trieda miest
+towns-own    [ 
+               paths               ;; pocet ciest, prechadzajucich mestom
+             ]
+
+breed        [ salesmans salesman] ;; trieda obchodnych cestujucich
+salesmans-own[ 
+               gen_path            ;; list segmentov trasy (joins) podla poradia
+               gen_exp             ;; miera expanzivity agenta
+
+               fen_age             ;; vek agenta
+               fen_count           ;; pocet miest v trase 
+               fen_length          ;; celkova dlzka trasy
+               fen_quality         ;; kvalita trasy
+               fen_value           ;; komplexna hodnota trasy
+             ]
+
+directed-link-breed[ joins join ]  ;; trieda spojeni
+joins-own    [
+               quality             ;; kvalita joinu - poradie od najmensieho 
+             ]
+
+;;============================================================================
+;; Inicializacia modelu
+;;----------------------------------------------------------------------------
+to setup
+  
+  ;;--------------------------------------------------------------------------
+  ;; vseobecne nastavenie
+  ;;--------------------------------------------------------------------------
+  clear-all                        ;; vsetko zmaz
+;;  random-seed new-seed             ;; generuj nove nahodne cisla
+  random-seed 1                    ;; generuj rovnake nahodne cisla
+  
+  ;; nastav cierny podklad
+  ask patches [ set pcolor black ] 
+  
+  ;; vytvor pero na kreslenie
+  create-turtles 1 [ hide-turtle   ;; who=0 je pero
+                     set label "Pero"
+                   ]   
+  
+  ;;--------------------------------------------------------------------------
+  ;; vytvorenie miest a agentov
+  ;;--------------------------------------------------------------------------
+  set pocet_agentov koeficient_agentov * pocet_miest
+  
+  towns_create     pocet_miest     ;; vytvor mnozinu miest
+  salesmans_create pocet_agentov   ;; vytvore mnozinu agentov
+  fenotyp                          ;; vyhodnot fenotyp
+  
+  ;;--------------------------------------------------------------------------
+  ;; prvotne vykreslenie
+  ;;--------------------------------------------------------------------------
+  joins_show
+  paths_show
+  reset-ticks                      ;; vynuluj pocitadlo tiknuti hodin 
+end
+
+;;============================================================================
+;; Metody riadenia simulacie
+;;----------------------------------------------------------------------------
+to krok                            ;; jeden krok simulacie
+  
+  rozvoj                           ;; vylepsi obchodnu trasu
+  fenotyp                          ;; vyhodnot fenotyp
+  nova_generacia                   ;; zomieranie a rodenie
+
+  tick                             ;; pohni rucickami vnutornych hodin
+end
+
+;;----------------------------------------------------------------------------
+to go                              ;; spustenie simulacie - stale dookola
+  krok                             ;; vykonaj jeden krok simulacie
+end
+;;----------------------------------------------------------------------------
+to rozvoj                          ;; vylepsi obchodnu trasu
+                                   
+  ;;--------------------------------------------------------------------------
+  ;; ak nemam hotovu cestu, pridaj cestu ineho agenta
+                                   
+  ask salesmans with [ fen_count < pocet_miest ]
+  
+  [
+    ;; faza pripojenia
+    let last_town [end2] of last gen_path
+    let potential salesmans with [ [end1] of first gen_path = last_town ]
+    
+    set gen_path sentence gen_path [gen_path] of one-of potential
+    
+    ;; faza odstranenia zacykleni
+    
+    
+   
+  ]                                 
+ 
+                                   
+end
+;;----------------------------------------------------------------------------
+to fenotyp                         ;; vyhodnot fenotyp
+
+  ask salesmans[
+    
+    set fen_age     fen_age + 1
+    
+    set fen_count   length gen_path
+    if  fen_count < 1 [ set fen_count 1 ]
+    
+    set fen_length  path_length  gen_path
+    set fen_quality path_quality gen_path
+    
+    set fen_value   fen_count / fen_length / fen_quality
+  ]
+                                   ;; 
+end
+;;----------------------------------------------------------------------------
+to nova_generacia                  ;;  zomieranie a rodenie
+
+                                   ;; die percento_bankrotov podla length
+                                   
+                                   ;; narodenie najvyssie kombinovane value
+end
+;;============================================================================
+;; Metody miest
+;;----------------------------------------------------------------------------
+to towns_create[ cnt ]             ;; vytvor mnozinu miest
+
+  ;;--------------------------------------------------------------------------
+  ;; vytvor [cnt] miest
+  
+  create-towns cnt
+  ask towns[ setxy random-xcor random-ycor 
+             set shape "dot" 
+             set color  yellow  
+             set label who
+           ]
+  
+  ;;--------------------------------------------------------------------------
+  ;; vytvor [pocet_susedov] joins k najblizsim mestam
+  let neigh pocet_susedov + 1
+
+  ask towns [ create-joins-to other min-n-of neigh towns[distance myself] ]
+  
+  ask towns [ let q 1
+              foreach sort-on[link-length] my-out-joins 
+              [ 
+                ask ? [ set quality q 
+                        if q < 8 [ set color violet  ]
+                        if q < 7 [ set color magenta ]
+                        if q < 6 [ set color red     ]
+                        if q < 5 [ set color orange  ]
+                        if q < 4 [ set color yellow  ]
+                        if q < 3 [ set color green   ]
+                        if q < 2 [ set color lime    ]
+                      ]
+                set q (q + 1)
+              ]
+            ]
+end
+;;----------------------------------------------------------------------------
+;;============================================================================
+;; Metody TS agentov
+;;----------------------------------------------------------------------------
+to salesmans_create[ cnt ]
+
+  ;;--------------------------------------------------------------------------
+  ;; vytvor [cnt] salesmanov
+  ;;--------------------------------------------------------------------------
+  
+  create-salesmans cnt
+  ask salesmans[ hide-turtle ]   ;; salesmani su neviditelni
+
+  ;;--------------------------------------------------------------------------
+  ;; priradenie pociatocneho segmentu cesty agentovi
+  ;;--------------------------------------------------------------------------
+  ask salesmans[ set gen_path but-first list 1 one-of joins ]
+  
+end  
+;;----------------------------------------------------------------------------
+;;============================================================================
+;; Pomocne metody
+;;----------------------------------------------------------------------------
+to-report path_length[ jlist ]
+  
+  let dist 0
+
+  foreach jlist [
+    ask ? [ set dist dist + link-length ]
+  ]
+  
+  report dist
+end  
+;;----------------------------------------------------------------------------
+to-report path_quality[ jlist ]
+  
+  let qual 0
+  
+  foreach jlist [
+    ask ? [ set qual qual + quality ]
+  ]
+  
+  set qual qual / length jlist
+  
+  report qual
+end  
+;;============================================================================
+;; Metody zobrazenia
+;;----------------------------------------------------------------------------
+to paths_show
+  
+;;  clear-drawing
+  ask salesmans [
+  
+    foreach gen_path [
+      ask ? [ show-link ]
+    ]
+  ]
+end  
+;;----------------------------------------------------------------------------
+to join_show
+end
+;;----------------------------------------------------------------------------
+to joins_show
+  
+  ifelse zobraz_joins 
+    [ ask joins [show-link] ]
+    [ ask joins [hide-link] ] 
+end  
+;;============================================================================
+;; Koniec suboru
+;;----------------------------------------------------------------------------
